@@ -862,10 +862,21 @@ export default function AeonCoop() {
 
   const handleCreateCircle = async (data) => {
     if (!signer) return;
+
+    // VALIDATION: Date must be in the future
+    const deadlineUnix = Math.floor(new Date(data.date).getTime() / 1000);
+    const currentUnix = Math.floor(Date.now() / 1000);
+
+    if (deadlineUnix <= currentUnix) {
+        showFeedback('error', 'Creation Failed: Unlock date must be in the future. Please select a valid date.');
+        return; 
+    }
+
     setIsLoading(true);
     try {
         const contract = new ethers.Contract(CONTRACTS.COOP, COOP_ABI, signer);
-        const deadlineUnix = Math.floor(new Date(data.date).getTime() / 1000);
+        
+        // Convert allocations to Wei (6 decimals)
         const allocsWei = data.allocations.map(a => ethers.parseUnits(a.toString(), 6));
         const assetAddr = data.asset === 'USDC' ? CONTRACTS.USDC : CONTRACTS.EURC;
 
