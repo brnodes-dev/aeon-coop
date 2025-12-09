@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { 
   Lock, Unlock, Plus, Wallet, Users, Calendar, X, 
   Hourglass, AlertTriangle, Loader2, LogOut, Copy, 
-  CheckCircle2, Info, ArrowRight, ShieldCheck, Handshake, ExternalLink, Save, Github, Database, BookUser, Check, Trash2, Smartphone
+  CheckCircle2, Info, ArrowRight, ShieldCheck, Handshake, ExternalLink, Save, Github, Database, BookUser, Check, Trash2, RefreshCw
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 
-// --- FIREBASE CONFIGURATION (AEON COOP OFFICIAL) ---
+// --- FIREBASE CONFIGURATION ---
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCefsEdH5gkIv9H-ENdsPUa93MWti4E1MM",
   authDomain: "aeon-coop.firebaseapp.com",
@@ -28,21 +28,22 @@ const ARC_CONFIG = {
 };
 
 const CONTRACTS = {
-    COOP: "0x84D371d042139c63dc77a5E60b90193BE2be1850",
+    COOP: "0x84D371d042139c63dc77a5E60b90193BE2be1850", 
     USDC: "0x3600000000000000000000000000000000000000",
     EURC: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a"
 };
 
 // --- ABIs ---
 const COOP_ABI = [
-    "function createCoop(string _name, address _asset, uint256 _deadline, address[] _participants, uint256[] _allocations) external",
-    "function deposit(uint256 _id, uint256 _amount) external",
-    "function withdraw(uint256 _id, uint256 _amount) external",
-    "function getMyCoops(address _user) external view returns (uint256[])",
-    "function coops(uint256) view returns (uint256 id, string name, address owner, address asset, uint256 goalAmount, uint256 totalDeposited, uint256 deadline, bool isClosed)",
-    "function getParticipantInfo(uint256 _id, address _user) external view returns (uint256 goal, uint256 balance)",
-    "event ParticipantAdded(uint256 indexed id, address indexed participant, uint256 allocation)",
-    "event Withdrawn(uint256 indexed id, address indexed user, uint256 amount, uint256 penalty)"
+  "function createCoop(string _name, address _asset, uint256 _deadline, address[] _participants, uint256[] _allocations) external",
+  "function deposit(uint256 _id, uint256 _amount) external",
+  "function withdraw(uint256 _id, uint256 _amount) external",
+  "function getMyCoops(address _user) external view returns (uint256[])",
+  "function coops(uint256) view returns (uint256 id, string name, address owner, address asset, uint256 goalAmount, uint256 totalDeposited, uint256 deadline, bool isClosed)",
+  "function getParticipantInfo(uint256 _id, address _user) external view returns (uint256 goal, uint256 balance)",
+  "event CoopCreated(uint256 indexed id, string name, address indexed owner, address asset, uint256 totalGoal, uint256 deadline)",
+  "event ParticipantAdded(uint256 indexed id, address indexed participant, uint256 allocation)",
+  "event Withdrawn(uint256 indexed id, address indexed user, uint256 amount, uint256 penalty)"
 ];
 
 const ERC20_ABI = [
@@ -763,7 +764,12 @@ export default function AeonCoop() {
 
     } catch(e) {
         console.error("Fetch Error:", e);
-        showFeedback('error', 'Failed to fetch Coops');
+        showFeedback('error', 'Network busy, retrying in 5 seconds...');
+        // AUTO-RETRY LOGIC (Network busy)
+        setTimeout(() => {
+             console.log("Retrying fetch via page reload...");
+             window.location.reload();
+        }, 5000);
     }
     setIsLoading(false);
   };
@@ -918,7 +924,13 @@ export default function AeonCoop() {
         await tx.wait();
 
         showFeedback('success', 'Deposit successful');
-        await fetchCoops(); // Wait for data refresh
+        await fetchCoops(); // Trigger auto-refresh and sync
+        
+        // --- PAGE REFRESH AS REQUESTED ---
+        setTimeout(() => {
+             window.location.reload();
+        }, 2000);
+
     } catch(e) {
         console.error(e);
         showFeedback('error', 'Deposit Failed');
@@ -940,7 +952,13 @@ export default function AeonCoop() {
         await tx.wait();
 
         showFeedback('success', isEmergency ? 'Emergency Withdrawal Complete' : 'Funds Withdrawn Successfully');
-        await fetchCoops(); // Wait for data refresh
+        await fetchCoops(); // Trigger auto-refresh and sync
+
+        // --- PAGE REFRESH AS REQUESTED ---
+        setTimeout(() => {
+             window.location.reload();
+        }, 2000);
+        
     } catch(e) {
         console.error(e);
         showFeedback('error', 'Withdrawal Failed');
