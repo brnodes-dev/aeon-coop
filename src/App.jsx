@@ -2,13 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { 
   Lock, Unlock, Plus, Wallet, Users, Calendar, X, 
   Hourglass, AlertTriangle, Loader2, LogOut, Copy, 
-  CheckCircle2, Info, ArrowRight, ShieldCheck, Handshake, ExternalLink, Save, Github, Database, BookUser, Check, Trash2
+  CheckCircle2, Info, ArrowRight, ShieldCheck, Handshake, ExternalLink, Save, Github, Database, BookUser, Check, Trash2, Smartphone
 } from 'lucide-react';
 import { ethers } from 'ethers';
 import { initializeApp } from 'firebase/app';
 import { getFirestore, doc, getDoc, setDoc, collection, getDocs, deleteDoc } from 'firebase/firestore';
 
-// --- FIREBASE CONFIGURATION ---
+// --- FIREBASE CONFIGURATION (AEON COOP OFFICIAL) ---
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyCefsEdH5gkIv9H-ENdsPUa93MWti4E1MM",
   authDomain: "aeon-coop.firebaseapp.com",
@@ -28,22 +28,21 @@ const ARC_CONFIG = {
 };
 
 const CONTRACTS = {
-    COOP: "0xCaCebd755C0500e4D2135B7719ef2A191D80CD18", 
+    COOP: "0x84D371d042139c63dc77a5E60b90193BE2be1850",
     USDC: "0x3600000000000000000000000000000000000000",
     EURC: "0x89B50855Aa3bE2F677cD6303Cec089B5F319D72a"
 };
 
 // --- ABIs ---
 const COOP_ABI = [
-  "function createCoop(string _name, address _asset, uint256 _deadline, address[] _participants, uint256[] _allocations) external",
-  "function deposit(uint256 _id, uint256 _amount) external",
-  "function withdraw(uint256 _id, uint256 _amount) external",
-  "function getMyCoops(address _user) external view returns (uint256[])",
-  "function coops(uint256) view returns (uint256 id, string name, address owner, address asset, uint256 goalAmount, uint256 totalDeposited, uint256 deadline, bool isClosed)",
-  "function getParticipantInfo(uint256 _id, address _user) external view returns (uint256 goal, uint256 balance)",
-  "event CoopCreated(uint256 indexed id, string name, address indexed owner, address asset, uint256 totalGoal, uint256 deadline)",
-  "event ParticipantAdded(uint256 indexed id, address indexed participant, uint256 allocation)",
-  "event Withdrawn(uint256 indexed id, address indexed user, uint256 amount, uint256 penalty)"
+    "function createCoop(string _name, address _asset, uint256 _deadline, address[] _participants, uint256[] _allocations) external",
+    "function deposit(uint256 _id, uint256 _amount) external",
+    "function withdraw(uint256 _id, uint256 _amount) external",
+    "function getMyCoops(address _user) external view returns (uint256[])",
+    "function coops(uint256) view returns (uint256 id, string name, address owner, address asset, uint256 goalAmount, uint256 totalDeposited, uint256 deadline, bool isClosed)",
+    "function getParticipantInfo(uint256 _id, address _user) external view returns (uint256 goal, uint256 balance)",
+    "event ParticipantAdded(uint256 indexed id, address indexed participant, uint256 allocation)",
+    "event Withdrawn(uint256 indexed id, address indexed user, uint256 amount, uint256 penalty)"
 ];
 
 const ERC20_ABI = [
@@ -144,6 +143,7 @@ const CircleCard = ({ circle, onClick, contactMap, account }) => {
 };
 
 const Dashboard = ({ circles, account, onNavigate, onSelectCircle, contactMap }) => {
+    // Safety check for circles
     const safeCircles = Array.isArray(circles) ? circles : [];
 
     const myOwned = safeCircles.filter(c => c.owner.toLowerCase() === account?.toLowerCase());
@@ -389,11 +389,7 @@ const Contacts = ({ account, db, contactMap, refreshContacts, onBack, showFeedba
             showFeedback('success', 'Contact saved!');
         } catch(e) {
             console.error("Save error:", e);
-            if (e.code === 'permission-denied') {
-                showFeedback('error', 'Database permission denied. Contact support.');
-            } else {
-                showFeedback('error', 'Failed to save contact.');
-            }
+            showFeedback('error', 'Failed to save contact.');
         }
         setIsLoading(false);
     };
@@ -600,6 +596,7 @@ export default function AeonCoop() {
   const [processingId, setProcessingId] = useState(null);
   const [db, setDb] = useState(null);
   const [contacts, setContacts] = useState({});
+  const [showMobileInstructions, setShowMobileInstructions] = useState(false);
 
   useEffect(() => {
     try {
@@ -613,6 +610,26 @@ export default function AeonCoop() {
   const showFeedback = (type, msg) => {
     setFeedback({ type, message: msg });
     setTimeout(() => setFeedback(null), 3000);
+  };
+
+  const copyUrl = () => {
+      const url = window.location.href;
+      if (navigator.clipboard && window.isSecureContext) {
+          navigator.clipboard.writeText(url).then(() => showFeedback('success', 'Link copied!'));
+      } else {
+          try {
+            const textArea = document.createElement("textarea");
+            textArea.value = url;
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            showFeedback('success', 'Link copied!');
+          } catch(e) {
+            showFeedback('error', 'Failed to copy');
+          }
+      }
   };
 
   const fetchContacts = async () => {
@@ -781,6 +798,12 @@ export default function AeonCoop() {
 
   // 2. Manual Connect
   const connectWallet = async () => {
+    const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobileDevice && !window.ethereum) {
+        setShowMobileInstructions(true);
+        return;
+    }
+
     if (!window.ethereum) return alert("Install MetaMask");
     setIsLoading(true);
     try {
@@ -968,6 +991,19 @@ export default function AeonCoop() {
                 <span className="font-medium">{feedback.message}</span>
             </div>
         )}
+        
+        {showMobileInstructions && (
+            <div className="fixed inset-0 z-[999] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                <div className="bg-zinc-900 border border-zinc-700 rounded-3xl p-6 w-full max-w-sm shadow-2xl relative text-center">
+                    <button onClick={() => setShowMobileInstructions(false)} className="absolute top-4 right-4 p-2 text-zinc-400 hover:text-white"><X size={24} /></button>
+                    <div className="bg-purple-500/10 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 border border-purple-500/20"><Smartphone className="w-8 h-8 text-purple-400"/></div>
+                    <h3 className="text-xl font-bold text-white mb-2">Connect Mobile Wallet</h3>
+                    <p className="text-zinc-400 text-sm mb-6 leading-relaxed">Aeon Coop works best inside your wallet's built-in browser (MetaMask, Rabby, etc).</p>
+                    <button onClick={copyUrl} className="w-full py-4 bg-purple-600 hover:bg-purple-500 rounded-xl flex items-center justify-center gap-3 transition-all font-bold text-white shadow-lg shadow-purple-900/30"><Copy size={20}/> Copy Website Link</button>
+                    <div className="mt-4 text-center text-xs text-zinc-500">1. Copy Link above<br/>2. Open MetaMask or Rabby App<br/>3. Paste in the internal Browser</div>
+                </div>
+            </div>
+        )}
 
         {activeTab === 'dashboard' && (
             <Dashboard 
@@ -1017,7 +1053,7 @@ export default function AeonCoop() {
       <div className="fixed bottom-0 left-0 right-0 p-2 text-[10px] text-center text-slate-600 bg-[#020617]/90 backdrop-blur flex justify-center gap-4 z-50 border-t border-slate-900">
            <span>Network: {ARC_CONFIG.chainName}</span>
            <a 
-             href="https://testnet.arcscan.app/address/0xCaCebd755C0500e4D2135B7719ef2A191D80CD18" 
+             href="https://testnet.arcscan.app/address/0x84D371d042139c63dc77a5E60b90193BE2be1850" 
              target="_blank" 
              rel="noopener noreferrer"
              className="hover:text-purple-400 transition-colors underline decoration-slate-700 hover:decoration-purple-400 flex items-center gap-1"
